@@ -126,10 +126,12 @@ export default function App() {
     }
   };
 
+  const saffron = "#FF6A00";
+
   return (
     <div className="flex flex-col h-screen bg-[#050505] text-white font-sans overflow-hidden selection:bg-emerald-500/30">
       {/* Top HUD Bar */}
-      <header className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-[#0a0a0a] z-30 relative overflow-hidden">
+      <header className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-transparent backdrop-blur-md z-30 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-emerald-500/5" />
         
         <div className="flex items-center gap-6 relative z-10">
@@ -153,23 +155,31 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-6 relative z-10">
-          <div className="flex items-center gap-4 bg-white/5 px-4 py-2 rounded-2xl border border-white/10">
-            <div className="flex flex-col items-end">
-              <span className="text-2xl font-mono font-bold tracking-tighter text-[#FF9933] drop-shadow-[0_0_8px_rgba(255,153,51,0.4)]">
-                {beneficiaries.length.toLocaleString()}
-              </span>
-              <span className="text-[7px] text-white/40 uppercase tracking-[0.2em] font-bold">Active Members</span>
-            </div>
+          <div className="flex flex-col items-end">
+            <span className="text-2xl font-mono font-bold tracking-tighter text-[#FF9933] drop-shadow-[0_0_8px_rgba(255,153,51,0.4)]">
+              {beneficiaries.length.toLocaleString()}
+            </span>
+            <span className="text-[7px] text-white/40 uppercase tracking-[0.2em] font-bold">Active Members</span>
           </div>
-          <button className="p-2 text-white/40 hover:text-white transition-colors">
-            <Settings className="w-4 h-4" />
-          </button>
         </div>
       </header>
 
-      <div className="flex-1 flex relative">
-        {/* Left Operations Panel */}
-        <aside className="w-64 border-r border-white/5 bg-[#0a0a0a]/80 backdrop-blur-md z-20 flex flex-col p-4 gap-6">
+      <div className="flex-1 relative overflow-hidden">
+        {/* Impact Map as Full Background */}
+        <div className="absolute inset-0 z-0">
+          <ImpactMap 
+            beneficiaries={beneficiaries} 
+            wards={BAREILLY_WARDS} 
+            neighborhoods={BAREILLY_NEIGHBORHOODS}
+            boundary={BAREILLY_BOUNDARY}
+            highlightWards={highlightWards}
+            filter={mapFilter}
+            onCategoryToggle={handleCategoryToggle}
+          />
+        </div>
+
+        {/* Left Operations Panel - Floating Glass Sidebar */}
+        <aside className="absolute top-0 left-0 bottom-0 w-64 border-r border-white/5 bg-transparent backdrop-blur-md z-20 flex flex-col p-4 gap-6 shadow-2xl">
           <PanelSection title="Operations">
             <div className="grid grid-cols-2 gap-2">
               <OpButton 
@@ -229,20 +239,44 @@ export default function App() {
           </div>
         </aside>
 
-        {/* Central Map Area */}
-        <main className="flex-1 relative bg-black">
-          <ImpactMap 
-            beneficiaries={beneficiaries} 
-            wards={BAREILLY_WARDS} 
-            neighborhoods={BAREILLY_NEIGHBORHOODS}
-            boundary={BAREILLY_BOUNDARY}
-            highlightWards={highlightWards}
-            filter={mapFilter}
-            onCategoryToggle={handleCategoryToggle}
-          />
+        {/* Central Map Area Content (Overlays) */}
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {/* Centered BOSS Overlay - Offset by sidebar width to center in map area */}
+          <div className="absolute inset-y-0 left-64 right-0 flex flex-col items-center justify-center pointer-events-none z-0 select-none">
+            <div className="flex flex-col items-center opacity-15">
+              <div className="flex justify-center items-baseline">
+                {/* Individual letters for overlapping effect */}
+                {['B', 'E', 'T', 'A'].map((letter, i) => (
+                  <span
+                    key={i}
+                    className="text-9xl font-display md:text-[20rem] leading-[0.8] tracking-[-0.02em] drop-shadow-[20px_0_30px_rgba(0,0,0,0.9)]"
+                    style={{ 
+                      color: saffron,
+                      zIndex: 10 - i,
+                      marginLeft: i > 0 ? '-0.12em' : '0',
+                      position: 'relative'
+                    }}
+                  >
+                    {letter}
+                  </span>
+                ))}
+              </div>
+              {/*
+                <div className="flex items-center gap-4 mt-4 w-full max-w-5xl px-4">
+                  <div className="h-[1.5px] flex-1 bg-saffron" style={{ backgroundColor: saffron }} />
+                  
+                  <p className="text-[8px] font-bold tracking-[1em] uppercase md:text-base text-white whitespace-nowrap">
+                    Bareilly Operating System & Solutions
+                  </p>
+                  
+                  <div className="h-[1.5px] flex-1 bg-saffron" style={{ backgroundColor: saffron }} />
+                </div>
+              */}
+            </div>
+          </div>
           
           {/* HUD Overlays */}
-          <div className="absolute top-6 right-6 flex flex-col gap-3 pointer-events-none z-10">
+          <div className="absolute top-6 right-6 flex flex-col gap-3 pointer-events-auto">
             {Object.entries(CATEGORY_COLORS).map(([cat, color]) => (
               <MiniStat 
                 key={cat} 
@@ -253,14 +287,12 @@ export default function App() {
             ))}
           </div>
 
-          <div className="absolute bottom-6 right-6 pointer-events-none">
+          <div className="absolute bottom-6 right-6">
             <div className="text-[8px] text-white/20 font-mono uppercase tracking-[0.4em]">
               Scanning Smart Bareilly 79.43E 28.37N
             </div>
           </div>
-        </main>
-
-        {/* Right Intelligence Panel (Optional/Floating) */}
+        </div>
       </div>
 
       {/* Floating Chat */}
@@ -298,7 +330,7 @@ function OpButton({ icon, label, active = false, onClick }: { icon: ReactNode; l
     <button 
       onClick={onClick}
       className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all duration-300 gap-2 border ${
-      active ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-white/5 text-white/40 hover:text-white/60 hover:bg-white/10'
+      active ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-transparent border-white/5 text-white/40 hover:text-white/60 hover:bg-white/5'
     }`}>
       {icon}
       <span className="text-[8px] uppercase tracking-widest font-bold">{label}</span>
@@ -322,7 +354,7 @@ function FeedItem({ time, msg, type }: { time: string; msg: string; type: 'alert
 
 function MiniStat({ label, value, colorHex }: { key?: string; label: string; value: string | number; colorHex: string }) {
   return (
-    <div className="bg-black/60 backdrop-blur-md border border-white/10 p-3 rounded-xl min-w-[120px] flex items-center justify-between gap-4">
+    <div className="bg-transparent backdrop-blur-md border border-white/5 p-3 rounded-xl min-w-[120px] flex items-center justify-between gap-4 shadow-xl">
       <div className="flex flex-col">
         <div className="text-[7px] uppercase tracking-widest text-white/40 font-bold">{label}</div>
         <div className="text-lg font-mono font-bold text-white overflow-hidden">

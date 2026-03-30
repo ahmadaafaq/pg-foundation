@@ -60,10 +60,11 @@ export const ImpactMap: FC<MapProps> = ({ beneficiaries, wards, neighborhoods, b
     resize();
     window.addEventListener('resize', resize);
 
+    const sidebarWidth = 256;
     const projection = d3.geoMercator()
       .center([79.4304381, 28.3670355])
       .scale(300000)
-      .translate([canvas.width / (2 * window.devicePixelRatio), canvas.height / (2 * window.devicePixelRatio)]);
+      .translate([(canvas.width / window.devicePixelRatio + sidebarWidth) / 2, canvas.height / (2 * window.devicePixelRatio)]);
 
     const zoom = d3.zoom<HTMLCanvasElement, unknown>()
       .scaleExtent([0.5, 20])
@@ -79,10 +80,14 @@ export const ImpactMap: FC<MapProps> = ({ beneficiaries, wards, neighborhoods, b
     
     let currentTransform = transformRef.current;
     if (currentTransform.k === 1 && currentTransform.x === 0 && currentTransform.y === 0) {
+      // Center the zoom around the visual center of the map area
+      const visualCenterX = (cssWidth + sidebarWidth) / 2;
+      const visualCenterY = cssHeight / 2;
+      
       currentTransform = d3.zoomIdentity
-        .translate(cssWidth / 2, cssHeight / 2)
-        .scale(2.25)
-        .translate(-cssWidth / 2, -cssHeight / 2);
+        .translate(visualCenterX, visualCenterY)
+        .scale(4.5) // Increased from 3.5 to zoom in further
+        .translate(-visualCenterX, -visualCenterY);
     }
     
     d3.select(canvas).call(zoom.transform, currentTransform);
@@ -331,9 +336,9 @@ export const ImpactMap: FC<MapProps> = ({ beneficiaries, wards, neighborhoods, b
     <div ref={containerRef} className="w-full h-full bg-[#050505] relative overflow-hidden cursor-move">
       <canvas ref={canvasRef} className="block" />
       
-      <div className="absolute top-8 left-8 flex flex-col gap-2 z-10">
-        <button onClick={handleZoomIn} className="w-10 h-10 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl flex items-center justify-center text-white hover:bg-white/10 transition-colors">+</button>
-        <button onClick={handleZoomOut} className="w-10 h-10 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl flex items-center justify-center text-white hover:bg-white/10 transition-colors">-</button>
+      <div className="absolute bottom-8 left-72 flex flex-col gap-2 z-10">
+        <button onClick={handleZoomIn} className="w-10 h-10 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl flex items-center justify-center text-white hover:bg-white/10 transition-colors pointer-events-auto">+</button>
+        <button onClick={handleZoomOut} className="w-10 h-10 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl flex items-center justify-center text-white hover:bg-white/10 transition-colors pointer-events-auto">-</button>
       </div>
 
     </div>
