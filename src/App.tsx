@@ -4,7 +4,8 @@ import { ImpactMap, CATEGORY_COLORS } from './components/Map';
 import { Chat } from './components/Chat';
 import { generateMockBeneficiaries, BAREILLY_WARDS, BAREILLY_BOUNDARY, BAREILLY_NEIGHBORHOODS, Beneficiary } from './data/mockData';
 import { generateMapFilter } from './services/gemini';
-import { LayoutDashboard, Users, Map as MapIcon, Settings, LogOut, Bell } from 'lucide-react';
+import { LayoutDashboard, Users, Map as MapIcon, Settings, LogOut, Bell, ShieldAlert } from 'lucide-react';
+import { CommandCentre } from './components/CommandCentre';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -36,6 +37,7 @@ export default function App() {
   const [highlightWards, setHighlightWards] = useState<number[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeOp, setActiveOp] = useState('Overview');
+  const [isCommandCentreOpen, setIsCommandCentreOpen] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -148,6 +150,13 @@ export default function App() {
           <div className="h-8 w-[1px] bg-white/10 mx-2" />
           
           <div className="flex gap-4">
+            <button 
+              onClick={() => setIsCommandCentreOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-600/10 border border-red-500/20 text-red-500 hover:bg-red-600/20 transition-all group"
+            >
+              <ShieldAlert className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Command Centre</span>
+            </button>
             <HUDStat label="System" value="Online" color="text-emerald-400" />
             <HUDStat label="Coverage" value="94.2%" color="text-blue-400" />
             <HUDStat label="Latency" value="12ms" color="text-emerald-400" />
@@ -303,6 +312,15 @@ export default function App() {
         isOpen={isChatOpen}
         onToggle={() => setIsChatOpen(!isChatOpen)}
       />
+
+      <AnimatePresence>
+        {isCommandCentreOpen && (
+          <CommandCentre 
+            isOpen={isCommandCentreOpen} 
+            onClose={() => setIsCommandCentreOpen(false)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
