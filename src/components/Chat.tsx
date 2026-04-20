@@ -1,5 +1,5 @@
 import React, { FC, useState, FormEvent, useRef, useEffect } from 'react';
-import { Send, Sparkles, User, X, MessageSquare, ChevronDown } from 'lucide-react';
+import { Send, Sparkles, User, X, MessageSquare, ChevronDown, Mic, MicOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Message {
@@ -8,7 +8,7 @@ interface Message {
 }
 
 interface ChatProps {
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, isVoice?: boolean) => void;
   messages: Message[];
   isTyping: boolean;
   isOpen: boolean;
@@ -17,13 +17,57 @@ interface ChatProps {
 
 export const Chat: FC<ChatProps> = ({ onSendMessage, messages, isTyping, isOpen, onToggle }) => {
   const [input, setInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition && !recognitionRef.current) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+        setIsListening(false);
+        onSendMessage(transcript, true);
+        setInput('');
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        if (event.error === 'not-allowed') {
+          alert('Microphone access was denied. Please check your browser permissions.');
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, [onSendMessage]);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      setInput('');
+      recognitionRef.current?.start();
+      setIsListening(true);
+    }
+  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -97,19 +141,32 @@ export const Chat: FC<ChatProps> = ({ onSendMessage, messages, isTyping, isOpen,
             </div>
 
             <form onSubmit={handleSubmit} className="p-5 border-t border-white/10 bg-[#0a0a0a]">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask about city coverage..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 pr-12 text-[11px] text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                />
+              <div className="relative flex items-center gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={isListening ? "Listening..." : "Ask about city coverage..."}
+                    className={`w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 pr-12 text-[11px] text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500/50 transition-colors ${isListening ? 'border-emerald-500/50' : ''}`}
+                  />
+                  <button
+                    type="submit"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-white/40 hover:text-emerald-400 transition-colors"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 <button
-                  type="submit"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-white/40 hover:text-emerald-400 transition-colors"
+                  type="button"
+                  onClick={toggleListening}
+                  className={`p-2.5 rounded-xl border transition-all ${
+                    isListening 
+                      ? 'bg-red-500/20 border-red-500/50 text-red-500 animate-pulse' 
+                      : 'bg-white/5 border-white/10 text-white/40 hover:text-emerald-400 hover:border-emerald-500/30'
+                  }`}
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
               </div>
             </form>

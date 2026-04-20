@@ -1,5 +1,5 @@
 {
   "name": "Parth Gautam Foundation Dashboard",
   "description": "Admin dashboard for Parth Gautam Foundation to visualize city-wide beneficiary coverage in Bareilly using an AI-powered map interface.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["microphone"]
 }

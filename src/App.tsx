@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo, ReactNode } from 'react';
+import { useState, useEffect, useMemo, ReactNode, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ImpactMap, CATEGORY_COLORS } from './components/Map';
 import { Chat } from './components/Chat';
 import { generateMockBeneficiaries, BAREILLY_WARDS, BAREILLY_BOUNDARY, BAREILLY_NEIGHBORHOODS, Beneficiary } from './data/mockData';
-import { generateMapFilter } from './services/gemini';
+import { generateMapFilter, generateSpeech } from './services/gemini';
 import { LayoutDashboard, Users, Map as MapIcon, Settings, LogOut, Bell, ShieldAlert } from 'lucide-react';
 import { CommandCentre } from './components/CommandCentre';
 
@@ -38,6 +38,37 @@ export default function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeOp, setActiveOp] = useState('Overview');
   const [isCommandCentreOpen, setIsCommandCentreOpen] = useState(false);
+
+  const playVoiceResponse = useCallback(async (text: string) => {
+    try {
+      const base64Audio = await generateSpeech(text);
+      const binaryString = atob(base64Audio);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      // Gemini TTS returns raw PCM 16-bit little-endian at 24kHz
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      const pcmData = new Int16Array(bytes.buffer);
+      const float32Data = new Float32Array(pcmData.length);
+      
+      for (let i = 0; i < pcmData.length; i++) {
+        float32Data[i] = pcmData[i] / 32768.0;
+      }
+      
+      const audioBuffer = audioContext.createBuffer(1, float32Data.length, 24000);
+      audioBuffer.getChannelData(0).set(float32Data);
+      
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+      source.start();
+    } catch (error) {
+      console.error("Failed to play voice response:", error);
+    }
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -83,21 +114,44 @@ export default function App() {
     return `Total beneficiaries: ${total}. Breakdown: ${JSON.stringify(categoryCounts)}`;
   }, [beneficiaries, categoryCounts]);
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = useCallback(async (content: string, isVoice: boolean = false) => {
     setMessages(prev => [...prev, { role: 'user', content }]);
     setIsTyping(true);
 
     try {
       const result = await generateMapFilter(content, dataSummary);
-      setMessages(prev => [...prev, { role: 'assistant', content: result.explanation }]);
+      
+      // Only add text message if it's not a voice-activated command centre action
+      const isVoiceCommandCentre = isVoice && result.action === 'open_command_centre';
+      
+      if (!isVoiceCommandCentre) {
+        setMessages(prev => [...prev, { role: 'assistant', content: result.explanation }]);
+      }
+      
       setMapFilter(result.filter || {});
       setHighlightWards(result.highlightWards || []);
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'assistant', content: "I encountered an error processing your request. Please try again." }]);
+
+      if (result.action === 'open_command_centre') {
+        setIsCommandCentreOpen(true);
+        setIsChatOpen(false); // Minimize assistant window as requested
+      }
+
+      if (isVoice) {
+        playVoiceResponse(result.explanation);
+      }
+    } catch (error: any) {
+      console.error("Chat Error:", error);
+      const errorMessage = error.message?.includes("GEMINI_API_KEY") 
+        ? "The Gemini API key is missing. Please add GEMINI_API_KEY to your environment variables in the Secrets panel."
+        : "I encountered an error processing your request. Please check your API key and try again.";
+      setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
+      if (isVoice) {
+        playVoiceResponse(errorMessage);
+      }
     } finally {
       setIsTyping(false);
     }
-  };
+  }, [dataSummary, playVoiceResponse]);
 
   const handleCategoryToggle = (category: string | null) => {
     setMapFilter((prev: any) => ({
